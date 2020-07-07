@@ -38,6 +38,7 @@ private:
 	char JOINADDR[30];
 	EmulNet *en;
     Log *log;
+  // pointer to a pointer to a MP1Node
 	MP1Node **mp1;
 	Params *par;
 public:

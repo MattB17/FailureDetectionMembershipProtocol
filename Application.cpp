@@ -34,6 +34,7 @@ int main(int argc, char *argv[]) {
 	// Create a new application object
 	Application *app = new Application(argv[1]);
 	// Call the run function
+	// simulates running the protocol and failing some nodes
 	app->run();
 	// When done delete the application object
 	delete(app);
@@ -51,6 +52,9 @@ Application::Application(char *infile) {
 	par->setparams(infile);
 	log = new Log(par);
 	en = new EmulNet(par);
+	// pointer to pointers of MP1Nodes
+	// EN_GPSZ is the actual number of peers (nodes)
+	// so allocating space for EN_GPSZ pointers to nodes
 	mp1 = (MP1Node **) malloc(par->EN_GPSZ * sizeof(MP1Node *));
 
 	/*
@@ -173,12 +177,13 @@ void Application::mp1Run() {
 void Application::fail() {
 	int i, removed;
 
-	// fail half the members at time t=400
+	// fail half the members at time t=100
 	if( par->DROP_MSG && par->getcurrtime() == 50 ) {
 		par->dropmsg = 1;
 	}
 
 	if( par->SINGLE_FAILURE && par->getcurrtime() == 100 ) {
+		// drop random node
 		removed = (rand() % par->EN_GPSZ);
 		#ifdef DEBUGLOG
 		log->LOG(&mp1[removed]->getMemberNode()->addr, "Node failed at time=%d", par->getcurrtime());
@@ -187,6 +192,7 @@ void Application::fail() {
 	}
 	else if( par->getcurrtime() == 100 ) {
 		removed = rand() % par->EN_GPSZ/2;
+		// fail half of the nodes
 		for ( i = removed; i < removed + par->EN_GPSZ/2; i++ ) {
 			#ifdef DEBUGLOG
 			log->LOG(&mp1[i]->getMemberNode()->addr, "Node failed at time = %d", par->getcurrtime());
