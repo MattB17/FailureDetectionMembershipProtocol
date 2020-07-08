@@ -38,7 +38,10 @@ public:
 	int currbuffsize;
 	int firsteltindex;
 	en_msg* buff[ENBUFFSIZE];
+
 	EM() {}
+
+	// copy assignment operator
 	EM& operator = (EM &anotherEM) {
 		this->nextid = anotherEM.getNextId();
 		this->currbuffsize = anotherEM.getCurrBuffSize();
@@ -50,24 +53,31 @@ public:
 		}
 		return *this;
 	}
+
 	int getNextId() {
 		return nextid;
 	}
+
 	int getCurrBuffSize() {
 		return currbuffsize;
 	}
+
 	int getFirstEltIndex() {
 		return firsteltindex;
 	}
+
 	void setNextId(int nextid) {
 		this->nextid = nextid;
 	}
+
 	void settCurrBuffSize(int currbuffsize) {
 		this->currbuffsize = currbuffsize;
 	}
+
 	void setFirstEltIndex(int firsteltindex) {
 		this->firsteltindex = firsteltindex;
 	}
+
 	virtual ~EM() {}
 };
 
@@ -77,9 +87,11 @@ public:
  * DESCRIPTION: This class defines an emulated network
  */
 class EmulNet
-{ 	
+{
 private:
 	Params* par;
+	// keeps track of messages sent and received from each node
+	// at each unit of time
 	int sent_msgs[MAX_NODES + 1][MAX_TIME];
 	int recv_msgs[MAX_NODES + 1][MAX_TIME];
 	int enInited;
