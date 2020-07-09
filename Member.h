@@ -35,20 +35,26 @@ public:
 	 // Overloaded = operator
 	Address& operator =(const Address &anotherAddress);
 	bool operator ==(const Address &anotherAddress);
+
+  // overloaded constructor
 	Address(string address) {
+		// strip id and port number from string
 		size_t pos = address.find(":");
 		int id = stoi(address.substr(0, pos));
 		short port = (short)stoi(address.substr(pos + 1, address.size()-pos-1));
 		memcpy(&addr[0], &id, sizeof(int));
 		memcpy(&addr[4], &port, sizeof(short));
 	}
+
 	string getAddress() {
 		int id = 0;
 		short port;
 		memcpy(&id, &addr[0], sizeof(int));
 		memcpy(&port, &addr[4], sizeof(short));
+		// converts the address to a string
 		return to_string(id) + ":" + to_string(port);
 	}
+
 	void init() {
 		memset(&addr, 0, sizeof(addr));
 	}
