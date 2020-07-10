@@ -58,6 +58,7 @@ private:
 
 public:
 	MP1Node(Member *, Params *, EmulNet *, Log *, Address *);
+  // Member pointer to memberNode
 	Member * getMemberNode() {
 		return memberNode;
 	}

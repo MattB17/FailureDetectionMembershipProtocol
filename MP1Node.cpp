@@ -39,9 +39,11 @@ MP1Node::~MP1Node() {}
  * 				This function is called by a node to receive messages currently waiting for it
  */
 int MP1Node::recvLoop() {
+	  // if the node has failed don't receive any messages
     if ( memberNode->bFailed ) {
     	return false;
     }
+		// otherwise, empty the buffer and push them into the queue
     else {
     	return emulNet->ENrecv(&(memberNode->addr), enqueueWrapper, NULL, 1, &(memberNode->mp1q));
     }
@@ -70,6 +72,7 @@ void MP1Node::nodeStart(char *servaddrstr, short servport) {
 
     // Self booting routines
     if( initThisNode(&joinaddr) == -1 ) {
+			// node failed
 #ifdef DEBUGLOG
         log->LOG(&memberNode->addr, "init_thisnode failed. Exit.");
 #endif
@@ -78,12 +81,14 @@ void MP1Node::nodeStart(char *servaddrstr, short servport) {
 
     if( !introduceSelfToGroup(&joinaddr) ) {
         finishUpThisNode();
+				// can't introduce self to group
 #ifdef DEBUGLOG
         log->LOG(&memberNode->addr, "Unable to join self to group. Exiting.");
 #endif
         exit(1);
     }
 
+		// otherwise the node has a valid address and joined the group
     return;
 }
 
@@ -96,6 +101,8 @@ int MP1Node::initThisNode(Address *joinaddr) {
 	/*
 	 * This function is partially implemented and may require changes
 	 */
+	// pull the id and port from the array. The id is the first 4 bytes
+	// and the port is the last 2
 	int id = *(int*)(&memberNode->addr.addr);
 	int port = *(short*)(&memberNode->addr.addr[4]);
 
@@ -123,6 +130,8 @@ int MP1Node::introduceSelfToGroup(Address *joinaddr) {
     static char s[1024];
 #endif
 
+		// the join address of a group is set to the address of the first
+		// node in the group. So if these are equal you are booting up the group
     if ( 0 == memcmp((char *)&(memberNode->addr.addr), (char *)&(joinaddr->addr), sizeof(memberNode->addr.addr))) {
         // I am the group booter (first process to join the group). Boot up the group
 #ifdef DEBUGLOG
@@ -131,12 +140,18 @@ int MP1Node::introduceSelfToGroup(Address *joinaddr) {
         memberNode->inGroup = true;
     }
     else {
+			  // message is composed of 4 chunks: MessageHdr, followed by join
+				// address, followed by one byte, followed by one heartbeat
         size_t msgsize = sizeof(MessageHdr) + sizeof(joinaddr->addr) + sizeof(long) + 1;
+				// allocate space, msg is a MessageHdr pointer
         msg = (MessageHdr *) malloc(msgsize * sizeof(char));
 
         // create JOINREQ message: format of data is {struct Address myaddr}
+				// set the message type in the first chunk of msg
         msg->msgType = JOINREQ;
+				// set the node's address in the second chunk
         memcpy((char *)(msg+1), &memberNode->addr.addr, sizeof(memberNode->addr.addr));
+				// set the heartbeat in the last chunk
         memcpy((char *)(msg+1) + 1 + sizeof(memberNode->addr.addr), &memberNode->heartbeat, sizeof(long));
 
 #ifdef DEBUGLOG
@@ -277,5 +292,5 @@ void MP1Node::initMemberListTable(Member *memberNode) {
 void MP1Node::printAddress(Address *addr)
 {
     printf("%d.%d.%d.%d:%d \n",  addr->addr[0],addr->addr[1],addr->addr[2],
-                                                       addr->addr[3], *(short*)&addr->addr[4]) ;    
+                                                       addr->addr[3], *(short*)&addr->addr[4]) ;
 }

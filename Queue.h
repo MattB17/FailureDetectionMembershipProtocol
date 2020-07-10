@@ -19,6 +19,7 @@ class Queue {
 public:
 	Queue() {}
 	virtual ~Queue() {}
+	// adds (buffer, size) tuple to queue
 	static bool enqueue(queue<q_elt> *queue, void *buffer, int size) {
 		q_elt element(buffer, size);
 		queue->emplace(element);
