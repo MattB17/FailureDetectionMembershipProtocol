@@ -187,6 +187,7 @@ int MP1Node::finishUpThisNode(){
  * 				Check your messages in queue and perform membership protocol duties
  */
 void MP1Node::nodeLoop() {
+	  // if the node has failed, do nothing
     if (memberNode->bFailed) {
     	return;
     }
@@ -269,7 +270,9 @@ Address MP1Node::getJoinAddress() {
     Address joinaddr;
 
     memset(&joinaddr, 0, sizeof(Address));
+		// the id is set to 1
     *(int *)(&joinaddr.addr) = 1;
+		// the port is set to 0
     *(short *)(&joinaddr.addr[4]) = 0;
 
     return joinaddr;

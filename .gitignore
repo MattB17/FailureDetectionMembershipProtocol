@@ -1,1 +1,5 @@
 .DS_Store
+
+# no build files
+Application
+*.o

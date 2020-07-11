@@ -19,6 +19,12 @@ Params::Params(): PORTNUM(8001) {}
 void Params::setparams(char *config_file) {
 	FILE *fp = fopen(config_file,"r");
 
+  // prints an error if the config file cannot be opened.
+	if (fp == NULL) {
+		printf("Failed to open config file '%s'.\n", config_file);
+		exit(1);
+	}
+
 	fscanf(fp,"MAX_NNB: %d", &MAX_NNB);
 	fscanf(fp,"\nSINGLE_FAILURE: %d", &SINGLE_FAILURE);
 	fscanf(fp,"\nDROP_MSG: %d", &DROP_MSG);
