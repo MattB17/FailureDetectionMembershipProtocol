@@ -3,3 +3,6 @@
 # no build files
 Application
 *.o
+
+# ignoring log files
+*.log
