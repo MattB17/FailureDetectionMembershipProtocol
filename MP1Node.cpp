@@ -182,7 +182,7 @@ int MP1Node::finishUpThisNode(){
 		memberNode->inited = false;
 		// node is down!
 		memberNode->nnb = 0;
-		memberNode->hearbeat = 0;
+		memberNode->heartbeat = 0;
 		memberNode->pingCounter = 0;
 		memberNode->timeOutCounter = 0;
 	}
