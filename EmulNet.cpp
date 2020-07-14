@@ -74,7 +74,7 @@ EmulNet::~EmulNet() {}
 void *EmulNet::ENinit(Address *myaddr, short port) {
 	// Initialize data structures for this member
 	*(int *)(myaddr->addr) = emulnet.nextid++;
-    *(short *)(&myaddr->addr[4]) = 0;
+  *(short *)(&myaddr->addr[4]) = 0;
 	return myaddr;
 }
 
