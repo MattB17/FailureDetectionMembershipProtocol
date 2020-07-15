@@ -127,23 +127,17 @@ void Application::mp1Run() {
 
 	// For all the nodes in the system
 	for( i = 0; i <= par->EN_GPSZ-1; i++) {
-
-		/*
-		 * Receive messages from the network and queue them in the membership protocol queue
-		 */
+		// checks if the node has been inserted (a node is inserted at time
+		// par->STEP_RATE*i) and that the node hasn't failed
 		if( par->getcurrtime() > (int)(par->STEP_RATE*i) && !(mp1[i]->getMemberNode()->bFailed) ) {
 			// Receive messages from the network and queue them
 			mp1[i]->recvLoop();
 		}
-
 	}
 
 	// For all the nodes in the system
 	for( i = par->EN_GPSZ - 1; i >= 0; i-- ) {
-
-		/*
-		 * Introduce nodes into the distributed system
-		 */
+		// checks if it is time to introduce the node into the system.
 		if( par->getcurrtime() == (int)(par->STEP_RATE*i) ) {
 			// introduce the ith node into the system at time STEPRATE*i
 			mp1[i]->nodeStart(JOINADDR, par->PORTNUM);
@@ -151,9 +145,7 @@ void Application::mp1Run() {
 			nodeCount += i;
 		}
 
-		/*
-		 * Handle all the messages in your queue and send heartbeats
-		 */
+		// checks that the node has been introduced and has not failed.
 		else if( par->getcurrtime() > (int)(par->STEP_RATE*i) && !(mp1[i]->getMemberNode()->bFailed) ) {
 			// handle messages and send heartbeats
 			mp1[i]->nodeLoop();
@@ -172,7 +164,7 @@ void Application::mp1Run() {
  *
  * DESCRIPTION: This function controls the failure of nodes
  *
- * Note: this is used only by MP1
+ * Note: this is used only by the run function
  */
 void Application::fail() {
 	int i, removed;
@@ -191,6 +183,7 @@ void Application::fail() {
 		mp1[removed]->getMemberNode()->bFailed = true;
 	}
 	else if( par->getcurrtime() == 100 ) {
+		// random position in first half of list
 		removed = rand() % par->EN_GPSZ/2;
 		// fail half of the nodes
 		for ( i = removed; i < removed + par->EN_GPSZ/2; i++ ) {
@@ -216,6 +209,7 @@ Address Application::getjoinaddr(void){
 	//trace.funcEntry("Application::getjoinaddr");
     Address joinaddr;
     joinaddr.init();
+		// set the id to 1 and port number to 0
     *(int *)(&(joinaddr.addr))=1;
     *(short *)(&(joinaddr.addr[4]))=0;
     //trace.funcExit("Application::getjoinaddr", SUCCESS);
