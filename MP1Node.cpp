@@ -306,3 +306,28 @@ void MP1Node::printAddress(Address *addr)
     printf("%d.%d.%d.%d:%d \n",  addr->addr[0],addr->addr[1],addr->addr[2],
                                                        addr->addr[3], *(short*)&addr->addr[4]) ;
 }
+
+void MP1Node::sendHeartbeatToPeers() {
+	// construct heartbeat message
+  MessageHdr *msg;
+	size_t msgsize = sizeof(MessageHdr) + sizeof(memberNode->addr.addr) + sizeof(long) + 1;
+	msg = (MessageHdr *) malloc(msgsize * sizeof(char));
+	msg->msgType = HEARTBEAT;
+	memcpy((char *)(msg+1), &memberNode->addr.addr, sizeof(memberNode->addr.addr));
+	memcpy((char *)(msg+1) + 1 + sizeof(memberNode->addr.addr), &memberNode->heartbeat, sizeof(long));
+
+	int id = *(int *)(&memberNode->addr.addr);
+	int port = *(short *)(&memberNode->addr.addr[4]);
+
+	// send heartbeat to all of your peers
+	for(vector<MemberListEntry>::iterator mle = memberNode->memberList.begin(); mle != memberNode->memberList.end(); ++mle) {
+    // don't send heartbeat to yourself
+		if ((id != mle->id) || (port != mle->port)) {
+			Address sendAddress;
+			*(int *)(&(sendAddress.addr)) = mle->id;
+			*(short *)(&(sendAddress.addr)) = mle->port;
+			emulNet->ENsend(&memberNode->addr, &sendAddress, (char *) msg, msgsize);
+		}
+	}
+	free(msg);
+}

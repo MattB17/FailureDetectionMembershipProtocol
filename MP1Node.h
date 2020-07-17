@@ -76,6 +76,7 @@ public:
 	Address getJoinAddress();
 	void initMemberListTable(Member *memberNode);
 	void printAddress(Address *addr);
+  void sendHeartbeatToPeers();
 	virtual ~MP1Node();
 };
 
