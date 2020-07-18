@@ -77,6 +77,7 @@ public:
 	void initMemberListTable(Member *memberNode);
 	void printAddress(Address *addr);
   void sendHeartbeatToPeers();
+  void updateMemberHeartbeat(Address *fromAddr, long heartbeat);
 	virtual ~MP1Node();
 };
 

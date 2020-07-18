@@ -320,14 +320,41 @@ void MP1Node::sendHeartbeatToPeers() {
 	int port = *(short *)(&memberNode->addr.addr[4]);
 
 	// send heartbeat to all of your peers
-	for(vector<MemberListEntry>::iterator mle = memberNode->memberList.begin(); mle != memberNode->memberList.end(); ++mle) {
+	for (vector<MemberListEntry>::iterator mle = memberNode->memberList.begin(); mle != memberNode->memberList.end(); ++mle) {
     // don't send heartbeat to yourself
 		if ((id != mle->id) || (port != mle->port)) {
 			Address sendAddress;
 			*(int *)(&(sendAddress.addr)) = mle->id;
-			*(short *)(&(sendAddress.addr)) = mle->port;
+			*(short *)(&(sendAddress.addr[4])) = mle->port;
 			emulNet->ENsend(&memberNode->addr, &sendAddress, (char *) msg, msgsize);
 		}
 	}
 	free(msg);
+}
+
+void MP1Node::updateMemberHeartbeat(Address *fromAddr, long heartbeat) {
+	// loop through member list searching for the member who sent the heartbeat
+	for (vector<MemberListEntry>::iterator mle = memberNode->memberList.begin(); mle != memberNode->memberList.end(); ++mle) {
+		Address memberAddr;
+		*(int *)(&(memberAddr.addr)) = mle->id;
+		*(short *)(&(memberAddr.addr[4])) = mle->port;
+
+		// check if it is the member who sent the heartbeat
+		if (memberAddr == *fromAddr) {
+			// update if the received heartbeat is later than the current heartbeat in the MemberListEntry mle
+			if (heartbeat > mle->getheartbeat()) {
+				mle->setheartbeat(heartbeat);
+				mle->settimestamp(par->getcurrtime());
+			}
+			// if we have found the correct peer then we are done
+			return;
+		}
+	}
+
+	// otherwise, we have traversed all members, so we need to add this peer
+	int fromId = *(int *)(fromAddr->addr);
+	int fromPort = *(short *)(fromAddr->addr[4]);
+	MemberListEntry newPeer = MemberListEntry(fromId, fromPort, heartbeat, par->getcurrtime());
+	memberNode->memberList.push_back(newPeer);
+	log->logNodeAdd(&memberNode->addr, fromAddr);
 }
