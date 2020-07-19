@@ -78,6 +78,7 @@ public:
 	void printAddress(Address *addr);
   void sendHeartbeatToPeers();
   void updateMemberHeartbeat(Address *fromAddr, long heartbeat);
+  void updateMemberTableFromGossip(vector<MemberListEntry> gossipTable);
 	virtual ~MP1Node();
 };
 
