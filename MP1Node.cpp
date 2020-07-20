@@ -253,12 +253,28 @@ bool MP1Node::recvCallBack(void *env, char *data, int size ) {
  * 				Propagate your membership list
  */
 void MP1Node::nodeLoopOps() {
+	// if pings have reached 0, send heartbeat and reset ping counter
+	if (memberNode->pingCounter == 0) {
+		memberNode->heartbeat++;
+		sendHeartbeatToPeers();
+		memberNode->pingCounter = TFAIL;
+	} else {
+		// otherwise decremenet ping counter
+		memberNode->pingCounter--;
+	}
 
-	/*
-	 * Your code goes here
-	 */
+	// remove any node that you have not heard from in over TREMOVE time (except youself)
+	for (vector<MemberListEntry>::iterator mle = memberNode->memberList.begin()+1; mle != memberNode->memberList.end(); ++mle) {
+		if (par->getcurrtime() - mle->gettimestamp() > TREMOVE) {
+			Address removeAddr;
+			*(int *)(&(removeAddr.addr)) = mle->id;
+			*(short *)(&(removeAddr.addr[4])) = mle->port;
+			memberNode->memberList.erase(mle);
+			log->logNodeRemove(&memberNode->addr, &removeAddr);
+		}
+	}
 
-    return;
+  return;
 }
 
 /**
