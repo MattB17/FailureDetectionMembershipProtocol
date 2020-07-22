@@ -299,9 +299,9 @@ void MP1Node::nodeLoopOps() {
 		memberNode->pingCounter--;
 	}
 
-	// remove any node that you have not heard from in at least TREMOVE time (except youself)
+	// remove any node that you have not heard from in over TREMOVE time (except youself)
 	for (vector<MemberListEntry>::iterator mle = memberNode->memberList.begin()+1; mle != memberNode->memberList.end(); ++mle) {
-		if (par->getcurrtime() - mle->gettimestamp() >= TREMOVE) {
+		if (par->getcurrtime() - mle->gettimestamp() > TREMOVE) {
 			Address removeAddr;
 			*(int *)(&(removeAddr.addr)) = mle->id;
 			*(short *)(&(removeAddr.addr[4])) = mle->port;
@@ -387,6 +387,28 @@ void MP1Node::sendHeartbeatToPeers() {
 	free(msg);
 }
 
+void MP1Node::sendReceivedHeartbeatToPeers(Address *receivedAddr, long receivedHeartbeat) {
+	MessageHdr *msg;
+	size_t msgsize = sizeof(MessageHdr) + sizeof(receivedAddr->addr) + sizeof(long) + 1;
+	msg = (MessageHdr *) malloc(msgsize * sizeof(char));
+	msg->msgType = HEARTBEAT;
+	memcpy((char *)(msg+1), &receivedAddr->addr, sizeof(receivedAddr->addr));
+	memcpy((char *)(msg+1) + 1 + sizeof(receivedAddr->addr), &receivedHeartbeat, sizeof(long));
+
+	int id = *(int *)(&memberNode->addr.addr);
+	int port = *(short *)(&memberNode->addr.addr[4]);
+
+	for (vector<MemberListEntry>::iterator mle = memberNode->memberList.begin()+1; mle != memberNode->memberList.end(); ++mle) {
+		if ((id != mle->id) || (port != mle->port)) {
+			Address sendAddress;
+			*(int *)(&(sendAddress.addr)) = mle->id;
+			*(short *)(&(sendAddress.addr[4])) = mle->port;
+			emulNet->ENsend(&memberNode->addr, &sendAddress, (char *) msg, msgsize);
+		}
+	}
+	free(msg);
+}
+
 void MP1Node::updateMemberHeartbeat(Address *fromAddr, long heartbeat) {
 	// loop through member list searching for the member who sent the heartbeat
 	for (vector<MemberListEntry>::iterator mle = memberNode->memberList.begin(); mle != memberNode->memberList.end(); ++mle) {
@@ -400,6 +422,7 @@ void MP1Node::updateMemberHeartbeat(Address *fromAddr, long heartbeat) {
 			if (heartbeat > mle->getheartbeat()) {
 				mle->setheartbeat(heartbeat);
 				mle->settimestamp(par->getcurrtime());
+				sendReceivedHeartbeatToPeers(fromAddr, heartbeat);
 			}
 			// if we have found the correct peer then we are done
 			return;
