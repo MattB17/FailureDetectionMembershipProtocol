@@ -98,9 +98,6 @@ void MP1Node::nodeStart(char *servaddrstr, short servport) {
  * DESCRIPTION: Find out who I am and start up
  */
 int MP1Node::initThisNode(Address *joinaddr) {
-	/*
-	 * This function is partially implemented and may require changes
-	 */
 	// pull the id and port from the array. The id is the first 4 bytes
 	// and the port is the last 2
 	int id = *(int*)(&memberNode->addr.addr);
@@ -115,6 +112,11 @@ int MP1Node::initThisNode(Address *joinaddr) {
 	memberNode->pingCounter = TFAIL;
 	memberNode->timeOutCounter = -1;
   initMemberListTable(memberNode);
+
+	// add myself to my memberListTable
+	MemberListEntry me = MemberListEntry(id, port, 0, par->getcurrtime());
+	memberNode->memberList.push_back(me);
+	log->logNodeAdd(&memberNode->addr, &memberNode->addr);
 
   return 0;
 }
@@ -240,9 +242,43 @@ void MP1Node::checkMessages() {
  * DESCRIPTION: Message handler for different message types
  */
 bool MP1Node::recvCallBack(void *env, char *data, int size ) {
-	/*
-	 * Your code goes here
-	 */
+	#ifdef DEBUGLOG
+		static char logMsg[1024];
+	#endif
+
+  // parse the message
+	MessageHdr *sourceHdr = (MessageHdr *)(data);
+	Address *sourceAddr = (Address *)(data + sizeof(MessageHdr));
+	long *sourceHeartbeat = (long *)(data + sizeof(MessageHdr) + sizeof(Address) + 1);
+
+	if (sourceHdr->msgType == JOINREQ) {
+		// construct reply message
+		MessageHdr *replyMsg;
+		size_t msgSize = sizeof(MessageHdr) + sizeof(Address) + 1 + sizeof(long);
+		replyMsg = (MessageHdr *) malloc(msgSize * sizeof(char));
+		replyMsg->msgType = JOINREP;
+		memcpy((char *)(replyMsg+1), &memberNode->addr.addr, sizeof(memberNode->addr.addr));
+		memcpy((char *)(replyMsg+1) + 1 + sizeof(Address), &memberNode->heartbeat, sizeof(long));
+
+		emulNet->ENsend(&memberNode->addr, sourceAddr, (char *)(replyMsg), msgSize);
+
+    // take format of log message from Log.cpp
+		#ifdef DEBUGLOG
+			sprintf(logMsg, "Sending reply message for join request to %d.%d.%d.%d:%d", sourceAddr->addr[0], sourceAddr->addr[1], sourceAddr->addr[2], sourceAddr->addr[3], *(short *)&sourceAddr->addr[4]);
+			log->LOG(&memberNode->addr, logMsg);
+		#endif
+
+		free(replyMsg);
+
+	} else if (sourceHdr->msgType == JOINREP) {
+		// this peer received a join reply so it is now in the group
+		memberNode->inGroup = true;
+	}
+
+	// update the membership table based on the received heartbeat
+	updateMemberHeartbeat(sourceAddr, *sourceHeartbeat);
+
+	return true;
 }
 
 /**
@@ -263,9 +299,9 @@ void MP1Node::nodeLoopOps() {
 		memberNode->pingCounter--;
 	}
 
-	// remove any node that you have not heard from in over TREMOVE time (except youself)
+	// remove any node that you have not heard from in at least TREMOVE time (except youself)
 	for (vector<MemberListEntry>::iterator mle = memberNode->memberList.begin()+1; mle != memberNode->memberList.end(); ++mle) {
-		if (par->getcurrtime() - mle->gettimestamp() > TREMOVE) {
+		if (par->getcurrtime() - mle->gettimestamp() >= TREMOVE) {
 			Address removeAddr;
 			*(int *)(&(removeAddr.addr)) = mle->id;
 			*(short *)(&(removeAddr.addr[4])) = mle->port;
@@ -343,6 +379,9 @@ void MP1Node::sendHeartbeatToPeers() {
 			*(int *)(&(sendAddress.addr)) = mle->id;
 			*(short *)(&(sendAddress.addr[4])) = mle->port;
 			emulNet->ENsend(&memberNode->addr, &sendAddress, (char *) msg, msgsize);
+		} else {
+			// otherwise update your own heartbeat in the table
+			mle->heartbeat = memberNode->heartbeat;
 		}
 	}
 	free(msg);
@@ -368,8 +407,8 @@ void MP1Node::updateMemberHeartbeat(Address *fromAddr, long heartbeat) {
 	}
 
 	// otherwise, we have traversed all members, so we need to add this peer
-	int fromId = *(int *)(fromAddr->addr);
-	int fromPort = *(short *)(fromAddr->addr[4]);
+	int fromId = *(int *)(&fromAddr->addr);
+	int fromPort = *(short *)(&fromAddr->addr[4]);
 	MemberListEntry newPeer = MemberListEntry(fromId, fromPort, heartbeat, par->getcurrtime());
 	memberNode->memberList.push_back(newPeer);
 	log->logNodeAdd(&memberNode->addr, fromAddr);
