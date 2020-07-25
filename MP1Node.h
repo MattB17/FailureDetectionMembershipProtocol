@@ -43,6 +43,17 @@ typedef struct MessageHdr {
 	enum MsgTypes msgType;
 }MessageHdr;
 
+class MessageHandler {
+private:
+  MessageHdr *msg;
+  size_t msgSize;
+public:
+  MessageHandler(Address *msgAddr, MsgTypes msgType, long msgHeartbeat);
+  ~MessageHandler();
+  MessageHdr* getMessage() { return msg; }
+  size_t getMessageSize() { return msgSize; }
+};
+
 /**
  * CLASS NAME: MP1Node
  *

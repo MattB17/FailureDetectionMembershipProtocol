@@ -7,14 +7,27 @@
 
 #include "MP1Node.h"
 
-/*
- * Note: You can change/add any functions in MP1Node.{h,cpp}
- */
+MessageHandler::MessageHandler(Address *msgAddr, MsgTypes msgType, long msgHeartbeat) {
+	// message is composed of 4 chunks: MessageHdr, followed by join
+	// address, followed by one byte, followed by a long representing heartbeat
+	msgSize = sizeof(MessageHdr) + sizeof(msgAddr->addr) + 1 + sizeof(long);
+	// allocate space, msg is a MessageHdr pointer
+	msg = (MessageHdr *) malloc(msgSize * sizeof(char));
+	// set the message type in the first chunk of msg
+	msg->msgType = msgType;
+	// set the node's address in the second chunk
+	memcpy((char *)(msg+1), &msgAddr->addr, sizeof(msgAddr->addr));
+	// set the heartbeat value in the last chunk
+	memcpy((char *)(msg+1) + 1 + sizeof(msgAddr->addr), &msgHeartbeat, sizeof(long));
+}
+
+MessageHandler::~MessageHandler() {
+	free(msg);
+}
+
 
 /**
  * Overloaded Constructor of the MP1Node class
- * You can add new members to the class if you think it
- * is necessary for your logic to work
  */
 MP1Node::MP1Node(Member *member, Params *params, EmulNet *emul, Log *log, Address *address) {
 	for( int i = 0; i < 6; i++ ) {
@@ -127,7 +140,6 @@ int MP1Node::initThisNode(Address *joinaddr) {
  * DESCRIPTION: Join the distributed system
  */
 int MP1Node::introduceSelfToGroup(Address *joinaddr) {
-	MessageHdr *msg;
 #ifdef DEBUGLOG
     static char s[1024];
 #endif
@@ -142,19 +154,8 @@ int MP1Node::introduceSelfToGroup(Address *joinaddr) {
         memberNode->inGroup = true;
     }
     else {
-			  // message is composed of 4 chunks: MessageHdr, followed by join
-				// address, followed by one byte, followed by one heartbeat
-        size_t msgsize = sizeof(MessageHdr) + sizeof(joinaddr->addr) + sizeof(long) + 1;
-				// allocate space, msg is a MessageHdr pointer
-        msg = (MessageHdr *) malloc(msgsize * sizeof(char));
-
-        // create JOINREQ message: format of data is {struct Address myaddr}
-				// set the message type in the first chunk of msg
-        msg->msgType = JOINREQ;
-				// set the node's address in the second chunk
-        memcpy((char *)(msg+1), &memberNode->addr.addr, sizeof(memberNode->addr.addr));
-				// set the heartbeat in the last chunk
-        memcpy((char *)(msg+1) + 1 + sizeof(memberNode->addr.addr), &memberNode->heartbeat, sizeof(long));
+			  // setup a JOINREQ message using the handler
+			  MessageHandler requestHandler(&memberNode->addr, JOINREQ, memberNode->heartbeat);
 
 #ifdef DEBUGLOG
         sprintf(s, "Trying to join...");
@@ -162,9 +163,9 @@ int MP1Node::introduceSelfToGroup(Address *joinaddr) {
 #endif
 
         // send JOINREQ message to introducer member
-        emulNet->ENsend(&memberNode->addr, joinaddr, (char *)msg, msgsize);
-
-        free(msg);
+        emulNet->ENsend(&memberNode->addr, joinaddr,
+					              (char *)(requestHandler.getMessage()),
+												requestHandler.getMessageSize());
     }
 
     return 1;
@@ -253,22 +254,18 @@ bool MP1Node::recvCallBack(void *env, char *data, int size ) {
 
 	if (sourceHdr->msgType == JOINREQ) {
 		// construct reply message
-		MessageHdr *replyMsg;
-		size_t msgSize = sizeof(MessageHdr) + sizeof(Address) + 1 + sizeof(long);
-		replyMsg = (MessageHdr *) malloc(msgSize * sizeof(char));
-		replyMsg->msgType = JOINREP;
-		memcpy((char *)(replyMsg+1), &memberNode->addr.addr, sizeof(memberNode->addr.addr));
-		memcpy((char *)(replyMsg+1) + 1 + sizeof(Address), &memberNode->heartbeat, sizeof(long));
+		MessageHandler replyHandler(&memberNode->addr, JOINREP, memberNode->heartbeat);
 
-		emulNet->ENsend(&memberNode->addr, sourceAddr, (char *)(replyMsg), msgSize);
+    // send reply message
+		emulNet->ENsend(&memberNode->addr, sourceAddr,
+			              (char *)(replyHandler.getMessage()),
+										replyHandler.getMessageSize());
 
     // take format of log message from Log.cpp
 		#ifdef DEBUGLOG
 			sprintf(logMsg, "Sending reply message for join request to %d.%d.%d.%d:%d", sourceAddr->addr[0], sourceAddr->addr[1], sourceAddr->addr[2], sourceAddr->addr[3], *(short *)&sourceAddr->addr[4]);
 			log->LOG(&memberNode->addr, logMsg);
 		#endif
-
-		free(replyMsg);
 
 	} else if (sourceHdr->msgType == JOINREP) {
 		// this peer received a join reply so it is now in the group
@@ -361,12 +358,7 @@ void MP1Node::printAddress(Address *addr)
 
 void MP1Node::sendHeartbeatToPeers() {
 	// construct heartbeat message
-  MessageHdr *msg;
-	size_t msgsize = sizeof(MessageHdr) + sizeof(memberNode->addr.addr) + sizeof(long) + 1;
-	msg = (MessageHdr *) malloc(msgsize * sizeof(char));
-	msg->msgType = HEARTBEAT;
-	memcpy((char *)(msg+1), &memberNode->addr.addr, sizeof(memberNode->addr.addr));
-	memcpy((char *)(msg+1) + 1 + sizeof(memberNode->addr.addr), &memberNode->heartbeat, sizeof(long));
+	MessageHandler heartbeatHandler(&memberNode->addr, HEARTBEAT, memberNode->heartbeat);
 
 	int id = *(int *)(&memberNode->addr.addr);
 	int port = *(short *)(&memberNode->addr.addr[4]);
@@ -378,22 +370,19 @@ void MP1Node::sendHeartbeatToPeers() {
 			Address sendAddress;
 			*(int *)(&(sendAddress.addr)) = mle->id;
 			*(short *)(&(sendAddress.addr[4])) = mle->port;
-			emulNet->ENsend(&memberNode->addr, &sendAddress, (char *) msg, msgsize);
+			emulNet->ENsend(&memberNode->addr, &sendAddress,
+				              (char *)(heartbeatHandler.getMessage()),
+											heartbeatHandler.getMessageSize());
 		} else {
 			// otherwise update your own heartbeat in the table
 			mle->heartbeat = memberNode->heartbeat;
 		}
 	}
-	free(msg);
 }
 
 void MP1Node::sendReceivedHeartbeatToPeers(Address *receivedAddr, long receivedHeartbeat) {
-	MessageHdr *msg;
-	size_t msgsize = sizeof(MessageHdr) + sizeof(receivedAddr->addr) + sizeof(long) + 1;
-	msg = (MessageHdr *) malloc(msgsize * sizeof(char));
-	msg->msgType = HEARTBEAT;
-	memcpy((char *)(msg+1), &receivedAddr->addr, sizeof(receivedAddr->addr));
-	memcpy((char *)(msg+1) + 1 + sizeof(receivedAddr->addr), &receivedHeartbeat, sizeof(long));
+	// construct heartbeat message
+	MessageHandler heartbeatHandler(receivedAddr, HEARTBEAT, receivedHeartbeat);
 
 	int id = *(int *)(&memberNode->addr.addr);
 	int port = *(short *)(&memberNode->addr.addr[4]);
@@ -403,10 +392,11 @@ void MP1Node::sendReceivedHeartbeatToPeers(Address *receivedAddr, long receivedH
 			Address sendAddress;
 			*(int *)(&(sendAddress.addr)) = mle->id;
 			*(short *)(&(sendAddress.addr[4])) = mle->port;
-			emulNet->ENsend(&memberNode->addr, &sendAddress, (char *) msg, msgsize);
+			emulNet->ENsend(&memberNode->addr, &sendAddress,
+				              (char *)(heartbeatHandler.getMessage()),
+										  heartbeatHandler.getMessageSize());
 		}
 	}
-	free(msg);
 }
 
 void MP1Node::updateMemberHeartbeat(Address *fromAddr, long heartbeat) {
