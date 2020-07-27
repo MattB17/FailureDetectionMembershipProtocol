@@ -31,7 +31,9 @@
 enum MsgTypes{
     JOINREQ,
     JOINREP,
-    HEARTBEAT
+    HEARTBEAT,
+    GOSSIP,
+    GOSSIPEND
 };
 
 /**
@@ -88,9 +90,9 @@ public:
 	void initMemberListTable(Member *memberNode);
 	void printAddress(Address *addr);
   void sendHeartbeatToPeers();
+  void gossipMemberTable();
   void sendReceivedHeartbeatToPeers(Address *receivedAddr, long receivedHeartbeat);
   void updateMemberHeartbeat(Address *fromAddr, long heartbeat);
-  void updateMemberTableFromGossip(vector<MemberListEntry> gossipTable);
 	virtual ~MP1Node();
 };
 

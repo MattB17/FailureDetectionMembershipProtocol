@@ -380,6 +380,39 @@ void MP1Node::sendHeartbeatToPeers() {
 	}
 }
 
+void MP1Node::gossipMemberTable() {
+	if (memberNode->memberList.size() > 1) {
+		int gossipPos = (rand() % (memberNode->memberList.size() - 1));
+		for (vector<MemberListEntry>::iterator mle = memberNode->memberList.begin() + 1; mle != memberNode->memberList.end(); ++mle) {
+			Address peerAddress;
+			*(int *)(&(peerAddress.addr)) = mle->id;
+			*(short *)(&(peerAddress.addr[4])) = mle->port;
+			MessageHandler gossipHandler(&peerAddress, GOSSIP, mle->getheartbeat());
+			for (vector<MemberListEntry>::iterator gMle = memberNode->memberList.begin() + 1 + gossipPos;
+		       (gMle != memberNode->memberList.end()) && (gMle != memberNode->memberList.begin() + 7 + gossipPos);
+				   ++gMle) {
+						 Address sendAddress;
+						 *(int *)(&(sendAddress.addr)) = gMle->id;
+						 *(short *)(&(sendAddress.addr)) = gMle->port;
+						 emulNet->ENsend(&memberNode->addr, &sendAddress,
+						                 (char *)(gossipHandler.getMessage()),
+													   gossipHandler.getMessageSize());
+					 }
+		}
+		MessageHandler gossipEndHandler(&memberNode->addr, GOSSIPEND, memberNode->heartbeat);
+		for (vector<MemberListEntry>::iterator gMle = memberNode->memberList.begin() + 1 + gossipPos;
+	       (gMle != memberNode->memberList.end()) && (gMle != memberNode->memberList.begin() + 7 + gossipPos);
+			   ++gMle) {
+					 Address sendAddress;
+					 *(int *)(&(sendAddress.addr)) = gMle->id;
+					 *(short *)(&(sendAddress.addr[4])) = gMle->port;
+					 emulNet->ENsend(&memberNode->addr, &sendAddress,
+					                 (char *)(gossipEndHandler.getMessage()),
+												   gossipEndHandler.getMessageSize());
+				 }
+	}
+}
+
 void MP1Node::sendReceivedHeartbeatToPeers(Address *receivedAddr, long receivedHeartbeat) {
 	// construct heartbeat message
 	MessageHandler heartbeatHandler(receivedAddr, HEARTBEAT, receivedHeartbeat);
@@ -425,35 +458,4 @@ void MP1Node::updateMemberHeartbeat(Address *fromAddr, long heartbeat) {
 	MemberListEntry newPeer = MemberListEntry(fromId, fromPort, heartbeat, par->getcurrtime());
 	memberNode->memberList.push_back(newPeer);
 	log->logNodeAdd(&memberNode->addr, fromAddr);
-}
-
-void MP1Node::updateMemberTableFromGossip(vector<MemberListEntry> gossipTable) {
-  // indicator for if the gossiped member was found in this node's member table
-	bool inMemberTable;
-	// loop through the entries in the gossip table
-	for (vector<MemberListEntry>::iterator gMle = gossipTable.begin(); gMle != gossipTable.end(); ++gMle) {
-		// initially, the gossiped member has not been found
-		inMemberTable = false;
-		// loop through this node's table
-		for (vector<MemberListEntry>::iterator mle = memberNode->memberList.begin(); mle != memberNode->memberList.end(); ++mle) {
-			// if we find a match, update the heartbeat, say that we found it, and stop searching
-			if ((gMle->id == mle->id) && (gMle->port == mle->port)) {
-				if (gMle->getheartbeat() > mle->getheartbeat()) {
-					mle->setheartbeat(gMle->getheartbeat());
-					mle->settimestamp(par->getcurrtime());
-				}
-				inMemberTable = true;
-				break;
-			}
-		}
-		// otherwise, it is not in this node's member table so add it
-		if (!inMemberTable) {
-			MemberListEntry newPeer = MemberListEntry(gMle->id, gMle->port, gMle->getheartbeat(), par->getcurrtime());
-			memberNode->memberList.push_back(newPeer);
-			Address fromAddr;
-			*(int *)(&(fromAddr.addr)) = gMle->id;
-			*(short *)(&(fromAddr.addr[4])) = gMle->port;
-			log->logNodeAdd(&memberNode->addr, &fromAddr);
-		}
-	}
 }
