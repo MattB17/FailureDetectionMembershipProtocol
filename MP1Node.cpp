@@ -383,11 +383,11 @@ void MP1Node::sendHeartbeatToPeers() {
 void MP1Node::gossipMemberTable() {
 	if (memberNode->memberList.size() > 1) {
 		int gossipPos = (rand() % (memberNode->memberList.size() - 1));
-		for (vector<MemberListEntry>::iterator mle = memberNode->memberList.begin() + 1; mle != memberNode->memberList.end(); ++mle) {
+		for (vector<MemberListEntry>::iterator mle = memberNode->memberList.begin(); mle != memberNode->memberList.end(); ++mle) {
 			Address peerAddress;
 			*(int *)(&(peerAddress.addr)) = mle->id;
 			*(short *)(&(peerAddress.addr[4])) = mle->port;
-			MessageHandler gossipHandler(&peerAddress, GOSSIP, mle->getheartbeat());
+			MessageHandler gossipHandler(&peerAddress, HEARTBEAT, mle->getheartbeat());
 			for (vector<MemberListEntry>::iterator gMle = memberNode->memberList.begin() + 1 + gossipPos;
 		       (gMle != memberNode->memberList.end()) && (gMle != memberNode->memberList.begin() + 7 + gossipPos);
 				   ++gMle) {
@@ -399,17 +399,6 @@ void MP1Node::gossipMemberTable() {
 													   gossipHandler.getMessageSize());
 					 }
 		}
-		MessageHandler gossipEndHandler(&memberNode->addr, GOSSIPEND, memberNode->heartbeat);
-		for (vector<MemberListEntry>::iterator gMle = memberNode->memberList.begin() + 1 + gossipPos;
-	       (gMle != memberNode->memberList.end()) && (gMle != memberNode->memberList.begin() + 7 + gossipPos);
-			   ++gMle) {
-					 Address sendAddress;
-					 *(int *)(&(sendAddress.addr)) = gMle->id;
-					 *(short *)(&(sendAddress.addr[4])) = gMle->port;
-					 emulNet->ENsend(&memberNode->addr, &sendAddress,
-					                 (char *)(gossipEndHandler.getMessage()),
-												   gossipEndHandler.getMessageSize());
-				 }
 	}
 }
 
