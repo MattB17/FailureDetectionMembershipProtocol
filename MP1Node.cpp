@@ -7,22 +7,25 @@
 
 #include "MP1Node.h"
 
-MessageHandler::MessageHandler(Address *msgAddr, MsgTypes msgType, long msgHeartbeat) {
+MessageHandler::MessageHandler() {
 	// message is composed of 4 chunks: MessageHdr, followed by join
 	// address, followed by one byte, followed by a long representing heartbeat
-	msgSize = sizeof(MessageHdr) + sizeof(msgAddr->addr) + 1 + sizeof(long);
+	msgSize = sizeof(MessageHdr) + sizeof(Address) + 1 + sizeof(long);
 	// allocate space, msg is a MessageHdr pointer
 	msg = (MessageHdr *) malloc(msgSize * sizeof(char));
+}
+
+MessageHandler::~MessageHandler() {
+	free(msg);
+}
+
+void MessageHandler::setMessage(Address *msgAddr, MsgTypes &&msgType, long msgHeartbeat) {
 	// set the message type in the first chunk of msg
 	msg->msgType = msgType;
 	// set the node's address in the second chunk
 	memcpy((char *)(msg+1), &msgAddr->addr, sizeof(msgAddr->addr));
 	// set the heartbeat value in the last chunk
 	memcpy((char *)(msg+1) + 1 + sizeof(msgAddr->addr), &msgHeartbeat, sizeof(long));
-}
-
-MessageHandler::~MessageHandler() {
-	free(msg);
 }
 
 
@@ -155,7 +158,8 @@ int MP1Node::introduceSelfToGroup(Address *joinaddr) {
     }
     else {
 			  // setup a JOINREQ message using the handler
-			  MessageHandler requestHandler(&memberNode->addr, JOINREQ, memberNode->heartbeat);
+				MessageHandler requestHandler;
+				requestHandler.setMessage(&memberNode->addr, JOINREQ, memberNode->heartbeat);
 
 #ifdef DEBUGLOG
         sprintf(s, "Trying to join...");
@@ -254,7 +258,8 @@ bool MP1Node::recvCallBack(void *env, char *data, int size ) {
 
 	if (sourceHdr->msgType == JOINREQ) {
 		// construct reply message
-		MessageHandler replyHandler(&memberNode->addr, JOINREP, memberNode->heartbeat);
+		MessageHandler replyHandler;
+		replyHandler.setMessage(&memberNode->addr, JOINREP, memberNode->heartbeat);
 
     // send reply message
 		emulNet->ENsend(&memberNode->addr, sourceAddr,
@@ -358,7 +363,8 @@ void MP1Node::printAddress(Address *addr)
 
 void MP1Node::sendHeartbeatToPeers() {
 	// construct heartbeat message
-	MessageHandler heartbeatHandler(&memberNode->addr, HEARTBEAT, memberNode->heartbeat);
+	MessageHandler heartbeatHandler;
+	heartbeatHandler.setMessage(&memberNode->addr, HEARTBEAT, memberNode->heartbeat);
 
 	int id = *(int *)(&memberNode->addr.addr);
 	int port = *(short *)(&memberNode->addr.addr[4]);
@@ -381,13 +387,14 @@ void MP1Node::sendHeartbeatToPeers() {
 }
 
 void MP1Node::gossipMemberTable() {
+	MessageHandler gossipHandler;
 	if (memberNode->memberList.size() > 1) {
 		int gossipPos = (rand() % (memberNode->memberList.size() - 1));
 		for (vector<MemberListEntry>::iterator mle = memberNode->memberList.begin(); mle != memberNode->memberList.end(); ++mle) {
 			Address peerAddress;
 			*(int *)(&(peerAddress.addr)) = mle->id;
 			*(short *)(&(peerAddress.addr[4])) = mle->port;
-			MessageHandler gossipHandler(&peerAddress, HEARTBEAT, mle->getheartbeat());
+			gossipHandler.setMessage(&peerAddress, HEARTBEAT, mle->getheartbeat());
 			for (vector<MemberListEntry>::iterator gMle = memberNode->memberList.begin() + 1 + gossipPos;
 		       (gMle != memberNode->memberList.end()) && (gMle != memberNode->memberList.begin() + 7 + gossipPos);
 				   ++gMle) {
@@ -404,7 +411,8 @@ void MP1Node::gossipMemberTable() {
 
 void MP1Node::sendReceivedHeartbeatToPeers(Address *receivedAddr, long receivedHeartbeat) {
 	// construct heartbeat message
-	MessageHandler heartbeatHandler(receivedAddr, HEARTBEAT, receivedHeartbeat);
+	MessageHandler heartbeatHandler;
+	heartbeatHandler.setMessage(receivedAddr, HEARTBEAT, receivedHeartbeat);
 
 	int id = *(int *)(&memberNode->addr.addr);
 	int port = *(short *)(&memberNode->addr.addr[4]);

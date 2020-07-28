@@ -20,7 +20,6 @@
  */
 #define TREMOVE 20
 #define TFAIL 5
-#define TGOSSIP 10
 
 /*
  * Note: You can change/add any functions in MP1Node.{h,cpp}
@@ -49,8 +48,10 @@ private:
   MessageHdr *msg;
   size_t msgSize;
 public:
-  MessageHandler(Address *msgAddr, MsgTypes msgType, long msgHeartbeat);
+  MessageHandler();
   ~MessageHandler();
+
+  void setMessage(Address *msgAddr, MsgTypes &&msgType, long msgHeartbeat);
   MessageHdr* getMessage() { return msg; }
   size_t getMessageSize() { return msgSize; }
 };
