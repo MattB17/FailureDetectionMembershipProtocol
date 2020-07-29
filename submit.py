@@ -7,7 +7,7 @@
 #* 
 #***********************
 
-import urllib
+import urllib.request as request
 import hashlib
 import random
 import email
@@ -88,11 +88,11 @@ def submitSolution(email_address,password, submissions):
       }
   }
   url = submit_url()
-  data = json.dumps(values)
-  req = urllib.request.Request(url)
+  data = json.dumps(values).encode("utf-8")
+  req = request.Request(url)
   req.add_header('Content-Type', 'application/json')
   req.add_header('Cache-Control', 'no-cache')
-  response = urllib.request.urlopen(req, data)
+  response = request.urlopen(req, data)
   return
 
 ## This collects the source code (just for logging purposes) 
