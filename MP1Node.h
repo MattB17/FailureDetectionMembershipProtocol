@@ -90,7 +90,6 @@ public:
 	void initMemberListTable(Member *memberNode);
 	void printAddress(Address *addr);
   void sendHeartbeatToPeers();
-  void gossipMemberTable();
   void sendReceivedHeartbeatToPeers(Address *receivedAddr, long receivedHeartbeat);
   void updateMemberHeartbeat(Address *fromAddr, long heartbeat);
 	virtual ~MP1Node();

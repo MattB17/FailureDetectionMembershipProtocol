@@ -10,7 +10,7 @@
 MessageHandler::MessageHandler() {
 	// message is composed of 4 chunks: MessageHdr, followed by join
 	// address, followed by one byte, followed by a long representing heartbeat
-	msgSize = sizeof(MessageHdr) + sizeof(Address) + 1 + sizeof(long);
+	msgSize = sizeof(MessageHdr) + (sizeof(char) * 6) + 1 + sizeof(long);
 	// allocate space, msg is a MessageHdr pointer
 	msg = (MessageHdr *) malloc(msgSize * sizeof(char));
 }
@@ -382,29 +382,6 @@ void MP1Node::sendHeartbeatToPeers() {
 		} else {
 			// otherwise update your own heartbeat in the table
 			mle->heartbeat = memberNode->heartbeat;
-		}
-	}
-}
-
-void MP1Node::gossipMemberTable() {
-	MessageHandler gossipHandler;
-	if (memberNode->memberList.size() > 1) {
-		int gossipPos = (rand() % (memberNode->memberList.size() - 1));
-		for (vector<MemberListEntry>::iterator mle = memberNode->memberList.begin(); mle != memberNode->memberList.end(); ++mle) {
-			Address peerAddress;
-			*(int *)(&(peerAddress.addr)) = mle->id;
-			*(short *)(&(peerAddress.addr[4])) = mle->port;
-			gossipHandler.setMessage(&peerAddress, HEARTBEAT, mle->getheartbeat());
-			for (vector<MemberListEntry>::iterator gMle = memberNode->memberList.begin() + 1 + gossipPos;
-		       (gMle != memberNode->memberList.end()) && (gMle != memberNode->memberList.begin() + 7 + gossipPos);
-				   ++gMle) {
-						 Address sendAddress;
-						 *(int *)(&(sendAddress.addr)) = gMle->id;
-						 *(short *)(&(sendAddress.addr)) = gMle->port;
-						 emulNet->ENsend(&memberNode->addr, &sendAddress,
-						                 (char *)(gossipHandler.getMessage()),
-													   gossipHandler.getMessageSize());
-					 }
 		}
 	}
 }
